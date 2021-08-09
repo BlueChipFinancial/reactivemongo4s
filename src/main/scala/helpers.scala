@@ -76,7 +76,7 @@ object helpers {
           queue <- Stream.eval(Queue.bounded[F, Option[Chunk[T]]](capacity))
           promise <- Stream.eval(Deferred[F, Unit])
           _ <- Stream.eval(Sync[F].delay(println(s"Is tailable: ${cursor.tailable}")))
-          _ <- Stream.eval {
+          _ <- Stream.bracket {
             Async[F].fromFutureDelay {
               def enqueue(v: Option[Chunk[T]]): Future[Either[Unit, Unit]] = {
                 println(s"Equeing chunks: $v")
@@ -104,8 +104,8 @@ object helpers {
                 //dispatcher.unsafeToFuture(promise.complete(()))
                 }
             }
-          }
-          stream <- Stream.fromQueueNoneTerminatedChunk(queue).onFinalize(promise.complete(()).void)
+          }(_ => promise.complete(()).void)
+          stream <- Stream.fromQueueNoneTerminatedChunk(queue)
         } yield stream
       )
   }
