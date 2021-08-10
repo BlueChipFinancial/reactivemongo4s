@@ -1,4 +1,4 @@
-name := "reactivemongo4cats"
+name := "reactivemongo4s"
 
 version := "0.1-SNAPSHOT"
 

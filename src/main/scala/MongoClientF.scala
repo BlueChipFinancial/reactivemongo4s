@@ -29,7 +29,7 @@ object MongoClientF {
     options: MongoConnectionOptions
   )(implicit F: Async[F], ec: ExecutionContext): Resource[F, MongoClientF[F]] = {
     val driver = new AsyncDriver
-    Resource.make(F.fromFutureDelay(driver.connect(nodes, options)))(_ => F.fromFutureDelay(driver.close(10.seconds)))
+    Resource.make(F.fromFutureDelay(driver.connect(nodes, options)))(_ => F.fromFutureDelay(driver.close(1000.seconds)))
       .map(c => new MongoClientImplF[F](c))
   }
 
