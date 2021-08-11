@@ -4,17 +4,30 @@ import scala.concurrent.ExecutionContext
 
 import cats.effect.Async
 import helpers._
-import reactivemongo.api.collections.{DeleteOps, GenericCollection}
+import reactivemongo.api.Collation
+import reactivemongo.api.bson.BSONDocumentWriter
+import reactivemongo.api.bson.collection.BSONCollection
 import reactivemongo.api.commands.WriteResult
-import reactivemongo.api.{Collation, SerializationPack}
 
 object DeleteOpsF {
-  implicit final class DeleteOpsFImpl[P <: SerializationPack](val delete: GenericCollection[P]#DeleteBuilder) {
-    def oneF[F[_]: Async, Q, U](
+  implicit final class DeleteOpsFImpl(val delete: BSONCollection#DeleteBuilder) {
+    def oneF[F[_]: Async, Q: BSONDocumentWriter](
       q: Q,
       limit: Option[Int] = None,
       collation: Option[Collation] = None
     )(implicit ec: ExecutionContext): F[WriteResult] =
-      Async[F].fromFutureDelay(delete.one(q, limit, collation)(ec, w))
+      Async[F].fromFutureDelay(delete.one(q, limit, collation))
+
+    def manyF[F[_]: Async](
+      deletes: Iterable[BSONCollection#DeleteElement]
+    )(implicit ec: ExecutionContext): F[BSONCollection#MultiBulkWriteResult] =
+      Async[F].fromFutureDelay(delete.many(deletes))
+
+    def elementF[F[_]: Async, Q: BSONDocumentWriter](
+      q: Q,
+      limit: Option[Int] = None,
+      collation: Option[Collation] = None
+    ): F[BSONCollection#DeleteElement] =
+      Async[F].fromFutureDelay(delete.element(q, limit, collation))
   }
 }
