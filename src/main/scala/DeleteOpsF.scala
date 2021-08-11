@@ -10,7 +10,7 @@ import reactivemongo.api.bson.collection.BSONCollection
 import reactivemongo.api.commands.WriteResult
 
 object DeleteOpsF {
-  implicit final class DeleteOpsFImpl(val delete: BSONCollection#DeleteBuilder) {
+  implicit final class DeleteOpsFImpl(val delete: BSONCollection#DeleteBuilder) extends AnyVal {
     def oneF[F[_]: Async, Q: BSONDocumentWriter](
       q: Q,
       limit: Option[Int] = None,
