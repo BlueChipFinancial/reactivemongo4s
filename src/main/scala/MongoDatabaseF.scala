@@ -9,7 +9,7 @@ import reactivemongo.api.bson.collection.BSONCollection
 
 trait MongoDatabaseF[F[_]] {
   def name: String
-  def getCollection(name: String): F[MongoCollectionF[F]]
+  def getCollection(name: String): F[BSONCollection]
   def collectionNames(implicit ec: ExecutionContext): F[List[String]]
   def createCollection(name: String)(implicit ec: ExecutionContext): F[Unit]
 }
@@ -22,8 +22,8 @@ object MongoDatabaseF {
   ) extends MongoDatabaseF[F] {
     def name: String = database.name
 
-    override def getCollection(name: String): F[MongoCollectionF[F]] =
-      F.delay(new MongoCollectionF[F](database.collection[BSONCollection](name)))
+    override def getCollection(name: String): F[BSONCollection] =
+      F.delay(database.collection[BSONCollection](name))
 
     override def collectionNames(implicit ec: ExecutionContext): F[List[String]] =
       F.fromFutureDelay(database.collectionNames)
