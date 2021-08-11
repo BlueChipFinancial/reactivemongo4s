@@ -1,0 +1,45 @@
+version: 2
+
+workflows:
+  version: 2
+  build_and_deploy:
+    jobs:
+      - build_and_deploy:
+          context: bcf
+          filters:
+            branches:
+              ignore:
+                - gh-pages
+
+jobs:
+  build_and_deploy:
+    working_directory: ~/reactivemongo4s
+    docker:
+      - image: nixos/nix
+    steps:
+      - run: echo 'export ARTIFACT_BUILD=$CIRCLE_PROJECT_REPONAME-$CIRCLE_BUILD_NUM.zip' >> $BASH_ENV
+      - checkout
+      - restore_cache:
+          key: sbt-cache
+      - run:
+          name: Copy in SBT files
+          command: nix-shell --run 'mkdir -p ~/.sbt && cp ci-files/repositories ~/.sbt/ && envsubst < ci-files/.credentials > ~/.sbt/.credentials'
+      - run:
+          name: Compile
+          command: nix-shell --run 'sbt clean compile'
+      - run:
+          name: Check formatting
+          command: nix-shell --run "sbt scalafmtCheckAll"
+      - run:
+          name: Run tests
+          command: nix-shell --run "sbt test"
+      - run:
+          name: Publish to Artifactory
+          command: |
+            nix-shell --run "sbt publish"
+      - save_cache:
+          key: sbt-cache
+          paths:
+            - "~/.ivy2/cache"
+            - "~/.sbt"
+            - "~/.m2"
