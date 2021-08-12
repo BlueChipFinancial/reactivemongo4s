@@ -5,7 +5,7 @@ import scala.concurrent.ExecutionContext
 
 import cats.effect.Async
 import helpers.AsyncExtended
-import reactivemongo.api.{CollectionStats, SerializationPack}
+import reactivemongo.api.{CollectionStats, SerializationPack, WriteConcern}
 import reactivemongo.api.collections.GenericCollection
 
 object ColOpsF {
@@ -22,13 +22,24 @@ object ColOpsF {
     def statsF[F[_]: Async](implicit ec: ExecutionContext): F[CollectionStats] =
       Async[F].fromFutureDelay(collection.stats())
 
-    def deleteF[F[_]: Async]: DeleteOpsF[F, P] =
-      DeleteOpsF(collection)
+    def deleteF[F[_]: Async](
+      ordered: Boolean = false,
+      writeConcern: Option[WriteConcern] = None
+    ): DeleteOpsF[F, P] =
+      DeleteOpsF(collection, ordered, writeConcern)
 
-    def updateF[F[_]: Async]: UpdateOpsF[F, P] =
-      UpdateOpsF(collection)
+    def updateF[F[_]: Async](
+      ordered: Boolean = false,
+      writeConcern: Option[WriteConcern] = None,
+      bypassDocumentValidation: Boolean = false
+    ): UpdateOpsF[F, P] =
+      UpdateOpsF(collection, ordered, writeConcern, bypassDocumentValidation)
 
-    def insertF[F[_]: Async]: InsertOpsF[F, P] =
-      InsertOpsF(collection)
+    def insertF[F[_]: Async](
+      ordered: Boolean = false,
+      writeConcern: Option[WriteConcern] = None,
+      bypassDocumentValidation: Boolean = false
+    ): InsertOpsF[F, P] =
+      InsertOpsF(collection, ordered, writeConcern, bypassDocumentValidation)
   }
 }
