@@ -16,9 +16,9 @@ trait MongoDatabaseF[F[_]] {
 
 object MongoDatabaseF {
   final private class LiveMongoDatabaseF[F[_]](
-    private val database: DB
+      private val database: DB
   )(implicit
-    val F: Async[F]
+      val F: Async[F]
   ) extends MongoDatabaseF[F] {
     def name: String = database.name
 

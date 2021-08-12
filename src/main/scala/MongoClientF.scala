@@ -16,19 +16,20 @@ trait MongoClientF[F[_]] {
 
 object MongoClientF {
   final private case class MongoClientImplF[F[_]](
-    private val connection: api.MongoConnection
-  )(implicit val F: Async[F], ec: ExecutionContext) extends MongoClientF[F] {
-    override def getDatabase(name: String): F[MongoDatabaseF[F]] = {
+      private val connection: api.MongoConnection
+  )(implicit val F: Async[F], ec: ExecutionContext)
+      extends MongoClientF[F] {
+    override def getDatabase(name: String): F[MongoDatabaseF[F]] =
       F.fromFutureDelay(connection.database(name)).map(MongoDatabaseF[F](_))
-    }
   }
 
   def apply[F[_]](
-    nodes: Seq[String],
-    options: MongoConnectionOptions
+      nodes: Seq[String],
+      options: MongoConnectionOptions
   )(implicit F: Async[F], ec: ExecutionContext): Resource[F, MongoClientF[F]] = {
     val driver = new AsyncDriver
-    Resource.make(F.fromFutureDelay(driver.connect(nodes, options)))(_ => F.fromFutureDelay(driver.close(10.seconds)))
+    Resource
+      .make(F.fromFutureDelay(driver.connect(nodes, options)))(_ => F.fromFutureDelay(driver.close(10.seconds)))
       .map(c => new MongoClientImplF[F](c))
   }
 
