@@ -1,4 +1,4 @@
-package com.bcf
+package com.bcf.reactivemongo4s
 
 import scala.collection.Factory
 import scala.concurrent.{ExecutionContext, Future}
@@ -11,23 +11,25 @@ import helpers._
 import reactivemongo.api.Cursor
 import reactivemongo.api.Cursor.ErrorHandler
 
-object CursorOpsF {
-  implicit final class CursorOpsFImpl[T](val cursor: Cursor.WithOps[T]) extends AnyVal {
+trait CursorOpsF {
+  implicit final class CursorOpsFImpl[T](val cursor: Cursor.WithOps[T]) {
     def headOptionF[F[_]: Async](implicit ec: ExecutionContext): F[Option[T]] =
       Async[F].fromFutureDelay(cursor.headOption)
 
     def headF[F[_]: Async](implicit ec: ExecutionContext): F[T] =
       Async[F].fromFutureDelay(cursor.head)
 
-    def collectF[F[_]: Async, M[_]](maxDocs: Int = Int.MaxValue, err: ErrorHandler[M[T]] = Cursor.FailOnError[M[T]]())(
-      implicit cbf: Factory[T, M[T]], ec: ExecutionContext
+    def collectF[F[_]: Async, M[_]](maxDocs: Int = Int.MaxValue, err: ErrorHandler[M[T]] = Cursor.FailOnError[M[T]]())(implicit
+        cbf: Factory[T, M[T]],
+        ec: ExecutionContext
     ): F[M[T]] = Async[F].fromFutureDelay(cursor.collect(maxDocs, err))
 
-    def peekF[F[_]: Async, M[_]](maxDocs: Int)(
-      implicit cbf: Factory[T, M[T]], ec: ExecutionContext
+    def peekF[F[_]: Async, M[_]](maxDocs: Int)(implicit
+        cbf: Factory[T, M[T]],
+        ec: ExecutionContext
     ): F[Cursor.Result[M[T]]] = Async[F].fromFutureDelay(cursor.peek(maxDocs))
 
-    def toStream[F[_]: Async](queueCapacity: Int)(implicit ec: ExecutionContext): F[Stream[F, T]] = {
+    def toStream[F[_]: Async](queueCapacity: Int)(implicit ec: ExecutionContext): F[Stream[F, T]] =
       Sync[F].delay(
         for {
           dispatcher <- Stream.resource(Dispatcher[F])
@@ -47,7 +49,8 @@ object CursorOpsF {
                     case Right(_) =>
                       Future.successful(Cursor.Cont())
                   }
-                }.flatMap(_ => enqueue(None))
+                }
+                .flatMap(_ => enqueue(None))
 
               Future.successful(promise)
             }
@@ -55,9 +58,8 @@ object CursorOpsF {
           stream <- Stream.fromQueueNoneTerminatedChunk(queue)
         } yield stream
       )
-    }
 
-    def toStreamUnterminated[F[_]: Async](capacity: Int)(implicit ec: ExecutionContext): F[Stream[F, T]] = {
+    def toStreamUnterminated[F[_]: Async](capacity: Int)(implicit ec: ExecutionContext): F[Stream[F, T]] =
       Sync[F].delay(
         for {
           dispatcher <- Stream.resource(Dispatcher[F])
@@ -71,16 +73,15 @@ object CursorOpsF {
               cursor
                 .foldBulksM(()) { (_, xs) =>
                   val chunk = Chunk.seq(xs.toSeq)
-                  if (chunk.isEmpty && cursor.tailable) {
+                  if (chunk.isEmpty && cursor.tailable)
                     Future.successful(Cursor.Cont(()))
-                  } else {
+                  else
                     enqueue(chunk).flatMap {
                       case Left(_) =>
                         Future.successful(Cursor.Done())
                       case Right(_) =>
                         Future.successful(Cursor.Cont())
                     }
-                  }
                 }
               Future.successful(promise)
             }
@@ -88,6 +89,5 @@ object CursorOpsF {
           stream <- Stream.fromQueueUnterminatedChunk(queue)
         } yield stream
       )
-    }
   }
 }

@@ -14,7 +14,6 @@ lazy val core = (project in file("."))
     scalaVersion := v.scala,
     libraryDependencies ++= coreDependencies,
     credentials += Credentials(Path.userHome / ".sbt" / ".credentials"),
-    idePackagePrefix.withRank(KeyRanks.Invisible) := Some("com.bcf"),
     // auto-generate version based on git
     tagMatcher := TagMatcher.prefix("v"),
     versionPolicy := Seq(

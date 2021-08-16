@@ -1,4 +1,4 @@
-package com.bcf
+package com.bcf.reactivemongo4s
 
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
@@ -16,20 +16,21 @@ trait MongoClientF[F[_]] {
 
 object MongoClientF {
   final private case class MongoClientImplF[F[_]](
-    private val connection: api.MongoConnection
-  )(implicit val F: Async[F], ec: ExecutionContext) extends MongoClientF[F] {
-    override def getDatabase(name: String): F[MongoDatabaseF[F]] = {
+      private val connection: api.MongoConnection
+  )(implicit val F: Async[F], ec: ExecutionContext)
+      extends MongoClientF[F] {
+    override def getDatabase(name: String): F[MongoDatabaseF[F]] =
       F.fromFutureDelay(connection.database(name)).map(MongoDatabaseF[F](_))
-    }
   }
 
   def apply[F[_]](
-    nodes: Seq[String],
-    options: MongoConnectionOptions,
-    closeTimeout: FiniteDuration = 10.seconds
+      nodes: Seq[String],
+      options: MongoConnectionOptions,
+      closeTimeout: FiniteDuration = 10.seconds
   )(implicit F: Async[F], ec: ExecutionContext): Resource[F, MongoClientF[F]] = {
     val driver = new AsyncDriver
-    Resource.make(F.fromFutureDelay(driver.connect(nodes, options)))(_ => F.fromFutureDelay(driver.close(closeTimeout)))
+    Resource
+      .make(F.fromFutureDelay(driver.connect(nodes, options)))(_ => F.fromFutureDelay(driver.close(closeTimeout)))
       .map(c => new MongoClientImplF[F](c))
   }
 

@@ -1,4 +1,4 @@
-package com.bcf
+package com.bcf.reactivemongo4s
 
 import scala.concurrent.Future
 
