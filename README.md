@@ -1,3 +1,33 @@
+### Usage
+##### Examples
+```scala
+import com.bcf.reactivemongo4s.implicits
+
+override def run(args: List[String]): IO[ExitCode] =
+  MongoClientF[IO](Seq("localhost"), MongoConnectionOptions.default.copy(keepAlive = true, readConcern = ReadConcern.Majority))
+    .use { con =>
+      for {
+        db <- con.getDatabase("test")
+        col <- db.getCollection("test")
+        res <- col.find(BSONDocument("b" -> BSONDocument("$exists" -> true)))
+          .cursor[SomeModel]()
+          .toStream[IO](100)
+        _ <- res.evalMap(model => IO.println(s"Got $model")).compile.drain
+        count <- col.countF[IO]
+        _ <- IO.println("Count: " + count)
+        countAggregated <- col.aggregateWith[SomeModel]() { framework =>
+          import framework.{Count, Match}
+
+          List(
+            Match(BSONDocument("b" -> BSONDocument("$gte" -> 1000))),
+            Count("total")
+          )
+        }.headF[IO]
+        _ <- IO.println("countAggregated: " + countAggregated)
+      } yield ()
+    }.as(ExitCode.Success)
+```
+
 ### Development
 
 ##### Run dockerized mongo

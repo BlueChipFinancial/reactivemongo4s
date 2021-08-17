@@ -1,39 +1,40 @@
-package com.bcf
+package com.bcf.reactivemongo4s
 
 import scala.collection.Factory
-import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.Future
 
 import cats.effect.std.{Dispatcher, Queue}
 import cats.effect.{Async, Deferred, Sync}
 import cats.implicits._
+import com.bcf.reactivemongo4s.helpers._
 import fs2.{Chunk, Stream}
-import helpers._
 import reactivemongo.api.Cursor
 import reactivemongo.api.Cursor.ErrorHandler
 
-object CursorOpsF {
-  implicit final class CursorOpsFImpl[T](val cursor: Cursor.WithOps[T]) extends AnyVal {
-    def headOptionF[F[_]: Async](implicit ec: ExecutionContext): F[Option[T]] =
-      Async[F].fromFutureDelay(cursor.headOption)
+trait CursorOpsF {
+  implicit final class CursorOpsFImpl[T](val cursor: Cursor.WithOps[T]) {
+    def headOptionF[F[_]: Async]: F[Option[T]] =
+      Async[F].fromFutureDelay(cursor.headOption(_))
+
+    def headF[F[_]: Async]: F[T] =
+      Async[F].fromFutureDelay(cursor.head(_))
 
     def collectF[F[_]: Async, M[_]](maxDocs: Int = Int.MaxValue, err: ErrorHandler[M[T]] = Cursor.FailOnError[M[T]]())(implicit
-        cbf: Factory[T, M[T]],
-        ec: ExecutionContext
-    ): F[M[T]] = Async[F].fromFutureDelay(cursor.collect(maxDocs, err))
+        cbf: Factory[T, M[T]]
+    ): F[M[T]] = Async[F].fromFutureDelay(cursor.collect(maxDocs, err)(cbf, _))
 
     def peekF[F[_]: Async, M[_]](maxDocs: Int)(implicit
-        cbf: Factory[T, M[T]],
-        ec: ExecutionContext
-    ): F[Cursor.Result[M[T]]] = Async[F].fromFutureDelay(cursor.peek(maxDocs))
+        cbf: Factory[T, M[T]]
+    ): F[Cursor.Result[M[T]]] = Async[F].fromFutureDelay(cursor.peek(maxDocs)(cbf, _))
 
-    def toStream[F[_]: Async](capacity: Int)(implicit ec: ExecutionContext): F[Stream[F, T]] =
+    def toStream[F[_]: Async](queueCapacity: Int): F[Stream[F, T]] =
       Sync[F].delay(
         for {
           dispatcher <- Stream.resource(Dispatcher[F])
-          queue <- Stream.eval(Queue.bounded[F, Option[Chunk[T]]](capacity))
+          queue <- Stream.eval(Queue.bounded[F, Option[Chunk[T]]](queueCapacity))
           promise <- Stream.eval(Deferred[F, Unit])
           _ <- Stream.bracket {
-            Async[F].fromFutureDelay {
+            Async[F].fromFutureDelay { implicit ec =>
               def enqueue(v: Option[Chunk[T]]): Future[Either[Unit, Unit]] =
                 dispatcher.unsafeToFuture(Async[F].race(promise.get, queue.offer(v)))
 
@@ -56,14 +57,14 @@ object CursorOpsF {
         } yield stream
       )
 
-    def toStreamUnterminated[F[_]: Async](capacity: Int)(implicit ec: ExecutionContext): F[Stream[F, T]] =
+    def toStreamUnterminated[F[_]: Async](capacity: Int): F[Stream[F, T]] =
       Sync[F].delay(
         for {
           dispatcher <- Stream.resource(Dispatcher[F])
           queue <- Stream.eval(Queue.bounded[F, Chunk[T]](capacity))
           promise <- Stream.eval(Deferred[F, Unit])
           _ <- Stream.bracket {
-            Async[F].fromFutureDelay {
+            Async[F].fromFutureDelay { implicit ec =>
               def enqueue(v: Chunk[T]): Future[Either[Unit, Unit]] =
                 dispatcher.unsafeToFuture(Async[F].race(promise.get, queue.offer(v)))
 
