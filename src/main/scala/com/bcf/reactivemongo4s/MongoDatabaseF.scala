@@ -1,17 +1,15 @@
 package com.bcf.reactivemongo4s
 
-import scala.concurrent.ExecutionContext
-
 import cats.effect.Async
-import helpers._
+import com.bcf.reactivemongo4s.helpers._
 import reactivemongo.api.DB
 import reactivemongo.api.bson.collection.BSONCollection
 
 trait MongoDatabaseF[F[_]] {
   def name: String
   def getCollection(name: String): F[BSONCollection]
-  def collectionNames(implicit ec: ExecutionContext): F[List[String]]
-  def createCollection(name: String)(implicit ec: ExecutionContext): F[Unit]
+  def collectionNames: F[List[String]]
+  def createCollection(name: String): F[Unit]
 }
 
 object MongoDatabaseF {
@@ -25,11 +23,11 @@ object MongoDatabaseF {
     override def getCollection(name: String): F[BSONCollection] =
       F.delay(database.collection[BSONCollection](name))
 
-    override def collectionNames(implicit ec: ExecutionContext): F[List[String]] =
-      F.fromFutureDelay(database.collectionNames)
+    override def collectionNames: F[List[String]] =
+      F.fromFutureDelay(database.collectionNames(_))
 
-    override def createCollection(name: String)(implicit ec: ExecutionContext): F[Unit] =
-      F.fromFutureDelay(database.collection[BSONCollection](name).create())
+    override def createCollection(name: String): F[Unit] =
+      F.fromFutureDelay(database.collection[BSONCollection](name).create()(_))
   }
 
   def apply[F[_]: Async](database: DB): MongoDatabaseF[F] = new LiveMongoDatabaseF[F](database)

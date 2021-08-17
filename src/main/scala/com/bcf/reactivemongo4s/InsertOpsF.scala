@@ -1,12 +1,10 @@
 package com.bcf.reactivemongo4s
 
-import scala.concurrent.ExecutionContext
-
 import cats.effect.Async
-import helpers._
-import reactivemongo.api.{SerializationPack, WriteConcern}
+import com.bcf.reactivemongo4s.helpers._
 import reactivemongo.api.collections.GenericCollection
 import reactivemongo.api.commands.WriteResult
+import reactivemongo.api.{SerializationPack, WriteConcern}
 
 case class InsertOpsF[F[_]: Async, P <: SerializationPack](
     collection: GenericCollection[P],
@@ -20,13 +18,13 @@ case class InsertOpsF[F[_]: Async, P <: SerializationPack](
       case None          => collection.insert(ordered, bypassDocumentValidation)
     }
 
-  def one[T: collection.pack.Writer](
+  def one[T](
       document: T
-  )(implicit ec: ExecutionContext): F[WriteResult] =
-    Async[F].fromFutureDelay(builder.one(document))
+  )(implicit writer: collection.pack.Writer[T]): F[WriteResult] =
+    Async[F].fromFutureDelay(builder.one(document)(_, writer))
 
-  def many[T: collection.pack.Writer](
+  def many[T](
       documents: Iterable[T]
-  )(implicit ec: ExecutionContext): F[collection.MultiBulkWriteResult] =
-    Async[F].fromFutureDelay(builder.many(documents))
+  )(implicit writer: collection.pack.Writer[T]): F[collection.MultiBulkWriteResult] =
+    Async[F].fromFutureDelay(builder.many(documents)(_, writer))
 }
