@@ -1,7 +1,6 @@
 package com.bcf.reactivemongo4s
 
 import scala.collection.Factory
-import scala.concurrent.ExecutionContext
 import scala.concurrent.duration.FiniteDuration
 
 import cats.effect.Async
@@ -11,37 +10,37 @@ import reactivemongo.api.collections.GenericCollection
 
 trait CollectionOpsF {
   implicit final class GenColExt[P <: SerializationPack](val collection: GenericCollection[P]) {
-    def countF[F[_]: Async](implicit ec: ExecutionContext): F[Long] =
-      Async[F].fromFutureDelay(collection.count())
+    def countF[F[_]: Async]: F[Long] =
+      Async[F].fromFutureDelay(collection.count()(_))
 
-    def createF[F[_]: Async](implicit ec: ExecutionContext): F[Unit] =
-      Async[F].fromFutureDelay(collection.create())
+    def createF[F[_]: Async]: F[Unit] =
+      Async[F].fromFutureDelay(collection.create()(_))
 
-    def dropF[F[_]: Async](implicit ec: ExecutionContext): F[Unit] =
-      Async[F].fromFutureDelay(collection.drop())
+    def dropF[F[_]: Async]: F[Unit] =
+      Async[F].fromFutureDelay(collection.drop()(_))
 
-    def statsF[F[_]: Async](implicit ec: ExecutionContext): F[CollectionStats] =
-      Async[F].fromFutureDelay(collection.stats())
+    def statsF[F[_]: Async]: F[CollectionStats] =
+      Async[F].fromFutureDelay(collection.stats()(_))
 
     def convertToCappedF[F[_]: Async](
         size: Long,
         maxDocuments: Option[Int]
-    )(implicit ec: ExecutionContext): F[Unit] =
-      Async[F].fromFutureDelay(collection.convertToCapped(size, maxDocuments))
+    ): F[Unit] =
+      Async[F].fromFutureDelay(collection.convertToCapped(size, maxDocuments)(_))
 
     def createCappedF[F[_]: Async](
         size: Long,
         maxDocuments: Option[Int]
-    )(implicit ec: ExecutionContext): F[Unit] =
-      Async[F].fromFutureDelay(collection.createCapped(size, maxDocuments))
+    ): F[Unit] =
+      Async[F].fromFutureDelay(collection.createCapped(size, maxDocuments)(_))
 
     def createViewF[F[_]: Async](
         name: String,
         operator: collection.PipelineOperator,
         pipeline: Seq[collection.PipelineOperator],
         collation: Option[Collation] = None
-    )(implicit ec: ExecutionContext): F[Unit] =
-      Async[F].fromFutureDelay(collection.createView(name, operator, pipeline, collation))
+    ): F[Unit] =
+      Async[F].fromFutureDelay(collection.createView(name, operator, pipeline, collation)(_))
 
     def distinctF[F[_]: Async, T, M[_] <: Iterable[_]](
         key: String,
@@ -50,10 +49,9 @@ trait CollectionOpsF {
         collation: Option[Collation] = None
     )(implicit
         reader: collection.pack.NarrowValueReader[T],
-        ec: ExecutionContext,
         cbf: Factory[T, M[T]]
     ): F[M[T]] =
-      Async[F].fromFutureDelay(collection.distinct(key, selector, readConcern, collation))
+      Async[F].fromFutureDelay(collection.distinct(key, selector, readConcern, collation)(reader, _, cbf))
 
     def findAndModifyF[F[_]: Async, S](
         selector: S,
@@ -65,7 +63,7 @@ trait CollectionOpsF {
         maxTime: Option[FiniteDuration] = None,
         collation: Option[Collation] = None,
         arrayFilters: Seq[collection.pack.Document] = Seq.empty
-    )(implicit swriter: collection.pack.Writer[S], ec: ExecutionContext): F[collection.FindAndModifyResult] =
+    )(implicit swriter: collection.pack.Writer[S]): F[collection.FindAndModifyResult] =
       Async[F].fromFutureDelay(
         collection.findAndModify(
           selector,
@@ -77,7 +75,7 @@ trait CollectionOpsF {
           maxTime,
           collation,
           arrayFilters
-        )
+        )(swriter, _)
       )
 
     def findAndRemove[F[_]: Async, S](
@@ -88,7 +86,7 @@ trait CollectionOpsF {
         maxTime: Option[FiniteDuration] = None,
         collation: Option[Collation] = None,
         arrayFilters: Seq[collection.pack.Document] = Seq.empty
-    )(implicit swriter: collection.pack.Writer[S], ec: ExecutionContext): F[collection.FindAndModifyResult] =
+    )(implicit swriter: collection.pack.Writer[S]): F[collection.FindAndModifyResult] =
       Async[F].fromFutureDelay(
         collection.findAndRemove(
           selector,
@@ -98,7 +96,7 @@ trait CollectionOpsF {
           maxTime,
           collation,
           arrayFilters
-        )
+        )(swriter, _)
       )
 
     def findAndUpdate[F[_]: Async, S, T](
@@ -115,8 +113,7 @@ trait CollectionOpsF {
         arrayFilters: Seq[collection.pack.Document] = Seq.empty
     )(implicit
         swriter: collection.pack.Writer[S],
-        writer: collection.pack.Writer[T],
-        ec: ExecutionContext
+        writer: collection.pack.Writer[T]
     ): F[collection.FindAndModifyResult] =
       Async[F].fromFutureDelay(
         collection.findAndUpdate(
@@ -131,7 +128,7 @@ trait CollectionOpsF {
           maxTime,
           collation,
           arrayFilters
-        )
+        )(swriter, writer, _)
       )
 
     def deleteF[F[_]: Async](

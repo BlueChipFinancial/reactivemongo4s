@@ -1,9 +1,7 @@
 package com.bcf.reactivemongo4s
 
-import scala.concurrent.ExecutionContext
-
 import cats.effect.Async
-import helpers._
+import com.bcf.reactivemongo4s.helpers._
 import reactivemongo.api.collections.GenericCollection
 import reactivemongo.api.commands.WriteResult
 import reactivemongo.api.{Collation, SerializationPack, WriteConcern}
@@ -19,22 +17,22 @@ case class DeleteOpsF[F[_]: Async, P <: SerializationPack](
       case None          => collection.delete(ordered)
     }
 
-  def one[Q: collection.pack.Writer](
+  def one[Q](
       q: Q,
       limit: Option[Int] = None,
       collation: Option[Collation] = None
-  )(implicit ec: ExecutionContext): F[WriteResult] =
-    Async[F].fromFutureDelay(builder.one(q, limit, collation))
+  )(implicit qw: collection.pack.Writer[Q]): F[WriteResult] =
+    Async[F].fromFutureDelay(builder.one(q, limit, collation)(_, qw))
 
   def many(
       deletes: Iterable[collection.DeleteElement]
-  )(implicit ec: ExecutionContext): F[collection.MultiBulkWriteResult] =
-    Async[F].fromFutureDelay(builder.many(deletes))
+  ): F[collection.MultiBulkWriteResult] =
+    Async[F].fromFutureDelay(builder.many(deletes)(_))
 
-  def element[Q: collection.pack.Writer](
+  def element[Q](
       q: Q,
       limit: Option[Int] = None,
       collation: Option[Collation] = None
-  ): F[collection.DeleteElement] =
-    Async[F].fromFutureDelay(builder.element(q, limit, collation))
+  )(implicit qw: collection.pack.Writer[Q]): F[collection.DeleteElement] =
+    Async[F].fromFutureDelay(_ => builder.element(q, limit, collation)(qw))
 }
