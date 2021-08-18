@@ -6,7 +6,7 @@ import reactivemongo.api.collections.GenericCollection
 import reactivemongo.api.commands.WriteResult
 import reactivemongo.api.{Collation, SerializationPack, WriteConcern}
 
-case class DeleteOpsF[F[_]: Async, P <: SerializationPack](
+case class DeleteOpsF[F[_]: Async: MongoExecutor, P <: SerializationPack](
     collection: GenericCollection[P],
     ordered: Boolean = false,
     writeConcern: Option[WriteConcern] = None

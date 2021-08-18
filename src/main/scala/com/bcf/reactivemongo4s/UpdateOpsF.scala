@@ -6,7 +6,7 @@ import reactivemongo.api.collections.GenericCollection
 import reactivemongo.api.{Collation, SerializationPack, WriteConcern}
 import reactivemongo.core.protocol.ProtocolMetadata
 
-case class UpdateOpsF[F[_]: Async, P <: SerializationPack](
+case class UpdateOpsF[F[_]: Async: MongoExecutor, P <: SerializationPack](
     collection: GenericCollection[P],
     ordered: Boolean = false,
     writeConcern: Option[WriteConcern] = None,

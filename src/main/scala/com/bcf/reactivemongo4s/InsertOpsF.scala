@@ -6,7 +6,7 @@ import reactivemongo.api.collections.GenericCollection
 import reactivemongo.api.commands.WriteResult
 import reactivemongo.api.{SerializationPack, WriteConcern}
 
-case class InsertOpsF[F[_]: Async, P <: SerializationPack](
+case class InsertOpsF[F[_]: Async: MongoExecutor, P <: SerializationPack](
     collection: GenericCollection[P],
     ordered: Boolean = false,
     writeConcern: Option[WriteConcern] = None,

@@ -2,8 +2,7 @@ package com.bcf.reactivemongo4s
 
 import scala.concurrent.duration._
 
-import cats.effect.Async
-import cats.effect.kernel.Resource
+import cats.effect.{Async, Resource}
 import cats.syntax.all._
 import com.bcf.reactivemongo4s.helpers._
 import reactivemongo.api
@@ -14,7 +13,7 @@ trait MongoClientF[F[_]] {
 }
 
 object MongoClientF {
-  final private case class MongoClientImplF[F[_]](
+  final private case class MongoClientImplF[F[_]: MongoExecutor](
       private val connection: api.MongoConnection
   )(implicit val F: Async[F])
       extends MongoClientF[F] {
@@ -22,7 +21,7 @@ object MongoClientF {
       F.fromFutureDelay(connection.database(name)(_)).map(MongoDatabaseF[F](_))
   }
 
-  def apply[F[_]](
+  def apply[F[_]: MongoExecutor](
       nodes: Seq[String],
       options: MongoConnectionOptions,
       closeTimeout: FiniteDuration = 10.seconds

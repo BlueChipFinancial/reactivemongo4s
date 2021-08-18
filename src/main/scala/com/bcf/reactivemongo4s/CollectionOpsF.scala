@@ -10,31 +10,31 @@ import reactivemongo.api.collections.GenericCollection
 
 trait CollectionOpsF {
   implicit final class GenColExt[P <: SerializationPack](val collection: GenericCollection[P]) {
-    def countF[F[_]: Async]: F[Long] =
+    def countF[F[_]: Async: MongoExecutor]: F[Long] =
       Async[F].fromFutureDelay(collection.count()(_))
 
-    def createF[F[_]: Async]: F[Unit] =
+    def createF[F[_]: Async: MongoExecutor]: F[Unit] =
       Async[F].fromFutureDelay(collection.create()(_))
 
-    def dropF[F[_]: Async]: F[Unit] =
+    def dropF[F[_]: Async: MongoExecutor]: F[Unit] =
       Async[F].fromFutureDelay(collection.drop()(_))
 
-    def statsF[F[_]: Async]: F[CollectionStats] =
+    def statsF[F[_]: Async: MongoExecutor]: F[CollectionStats] =
       Async[F].fromFutureDelay(collection.stats()(_))
 
-    def convertToCappedF[F[_]: Async](
+    def convertToCappedF[F[_]: Async: MongoExecutor](
         size: Long,
         maxDocuments: Option[Int]
     ): F[Unit] =
       Async[F].fromFutureDelay(collection.convertToCapped(size, maxDocuments)(_))
 
-    def createCappedF[F[_]: Async](
+    def createCappedF[F[_]: Async: MongoExecutor](
         size: Long,
         maxDocuments: Option[Int]
     ): F[Unit] =
       Async[F].fromFutureDelay(collection.createCapped(size, maxDocuments)(_))
 
-    def createViewF[F[_]: Async](
+    def createViewF[F[_]: Async: MongoExecutor](
         name: String,
         operator: collection.PipelineOperator,
         pipeline: Seq[collection.PipelineOperator],
@@ -42,7 +42,7 @@ trait CollectionOpsF {
     ): F[Unit] =
       Async[F].fromFutureDelay(collection.createView(name, operator, pipeline, collation)(_))
 
-    def distinctF[F[_]: Async, T, M[_] <: Iterable[_]](
+    def distinctF[F[_]: Async: MongoExecutor, T, M[_] <: Iterable[_]](
         key: String,
         selector: Option[collection.pack.Document] = None,
         readConcern: ReadConcern = ReadConcern.Local,
@@ -53,7 +53,7 @@ trait CollectionOpsF {
     ): F[M[T]] =
       Async[F].fromFutureDelay(collection.distinct(key, selector, readConcern, collation)(reader, _, cbf))
 
-    def findAndModifyF[F[_]: Async, S](
+    def findAndModifyF[F[_]: Async: MongoExecutor, S](
         selector: S,
         modifier: collection.FindAndModifyOp,
         sort: Option[collection.pack.Document] = None,
@@ -78,7 +78,7 @@ trait CollectionOpsF {
         )(swriter, _)
       )
 
-    def findAndRemove[F[_]: Async, S](
+    def findAndRemove[F[_]: Async: MongoExecutor, S](
         selector: S,
         sort: Option[collection.pack.Document] = None,
         fields: Option[collection.pack.Document] = None,
@@ -99,7 +99,7 @@ trait CollectionOpsF {
         )(swriter, _)
       )
 
-    def findAndUpdate[F[_]: Async, S, T](
+    def findAndUpdate[F[_]: Async: MongoExecutor, S, T](
         selector: S,
         update: T,
         fetchNewObject: Boolean = false,
@@ -131,20 +131,20 @@ trait CollectionOpsF {
         )(swriter, writer, _)
       )
 
-    def deleteF[F[_]: Async](
+    def deleteF[F[_]: Async: MongoExecutor](
         ordered: Boolean = false,
         writeConcern: Option[WriteConcern] = None
     ): DeleteOpsF[F, P] =
       DeleteOpsF(collection, ordered, writeConcern)
 
-    def updateF[F[_]: Async](
+    def updateF[F[_]: Async: MongoExecutor](
         ordered: Boolean = false,
         writeConcern: Option[WriteConcern] = None,
         bypassDocumentValidation: Boolean = false
     ): UpdateOpsF[F, P] =
       UpdateOpsF(collection, ordered, writeConcern, bypassDocumentValidation)
 
-    def insertF[F[_]: Async](
+    def insertF[F[_]: Async: MongoExecutor](
         ordered: Boolean = false,
         writeConcern: Option[WriteConcern] = None,
         bypassDocumentValidation: Boolean = false

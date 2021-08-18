@@ -13,7 +13,7 @@ trait MongoDatabaseF[F[_]] {
 }
 
 object MongoDatabaseF {
-  final private class LiveMongoDatabaseF[F[_]](
+  final private class LiveMongoDatabaseF[F[_]: MongoExecutor](
       private val database: DB
   )(implicit
       val F: Async[F]
@@ -30,5 +30,5 @@ object MongoDatabaseF {
       F.fromFutureDelay(database.collection[BSONCollection](name).create()(_))
   }
 
-  def apply[F[_]: Async](database: DB): MongoDatabaseF[F] = new LiveMongoDatabaseF[F](database)
+  def apply[F[_]: Async: MongoExecutor](database: DB): MongoDatabaseF[F] = new LiveMongoDatabaseF[F](database)
 }

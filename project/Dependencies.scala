@@ -3,9 +3,9 @@ import sbt._
 object Dependencies {
 
   object v {
-    val catsEffect = "3.2.0"
+    val catsEffect = "2.5.3"
     val reactiveMongo = "1.0.6"
-    val fs2 = "3.0.6"
+    val fs2 = "2.5.9"
     val scala = "2.13.6"
   }
 
