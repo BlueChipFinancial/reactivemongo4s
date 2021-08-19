@@ -7,7 +7,8 @@ import cats.effect.concurrent.Deferred
 import cats.effect.{Async, Concurrent, ConcurrentEffect, Sync}
 import cats.implicits._
 import com.bcf.reactivemongo4s.helpers._
-import fs2.{Chunk, Stream, Queue}
+import fs2.concurrent.Queue
+import fs2.{Chunk, Stream}
 import reactivemongo.api.Cursor
 import reactivemongo.api.Cursor.ErrorHandler
 
@@ -30,7 +31,7 @@ trait CursorOpsF {
     private def enqueueFuture[F[_]: ConcurrentEffect, A](queue: Queue[F, A], promise: Deferred[F, _])(el: A) =
       ConcurrentEffect[F].toIO(Concurrent[F].race(promise.get, queue.enqueue(Stream(el)).compile.drain)).unsafeToFuture()
 
-    def toStream[F[_]: ConcurrentEffect: MongoExecutor](queueCapacity: Int)(implicit ec: ExecutionContext): F[Stream[F, T]] =
+    def toStream[F[_]: ConcurrentEffect: MongoExecutor](queueCapacity: Int): F[Stream[F, T]] =
       Sync[F].delay(
         for {
           queue <- Stream.eval(Queue.bounded[F, Option[Chunk[T]]](queueCapacity))
@@ -58,7 +59,7 @@ trait CursorOpsF {
         } yield stream
       )
 
-    def toStreamUnterminated[F[_]: ConcurrentEffect: MongoExecutor](capacity: Int)(implicit ec: ExecutionContext): F[Stream[F, T]] =
+    def toStreamUnterminated[F[_]: ConcurrentEffect: MongoExecutor](capacity: Int): F[Stream[F, T]] =
       Sync[F].delay(
         for {
           queue <- Stream.eval(Queue.bounded[F, Chunk[T]](capacity))
@@ -66,7 +67,7 @@ trait CursorOpsF {
           _ <- Stream.bracket {
             Async[F].fromFutureDelay { implicit ec =>
               val enqueue = enqueueFuture[F, Chunk[T]](queue, promise) _
-              
+
               cursor
                 .foldBulksM(()) { (_, xs) =>
                   val chunk = Chunk.seq(xs.toSeq)
