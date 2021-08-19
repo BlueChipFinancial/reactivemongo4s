@@ -1,14 +1,13 @@
 package com.bcf.reactivemongo4s
 
 import scala.collection.Factory
-import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.Future
 
 import cats.effect.concurrent.Deferred
 import cats.effect.{Async, Concurrent, ConcurrentEffect, Sync}
 import cats.implicits._
 import com.bcf.reactivemongo4s.helpers._
-import fs2.concurrent.Queue
-import fs2.{Chunk, Stream}
+import fs2.{Chunk, Stream, Queue}
 import reactivemongo.api.Cursor
 import reactivemongo.api.Cursor.ErrorHandler
 
@@ -67,6 +66,7 @@ trait CursorOpsF {
           _ <- Stream.bracket {
             Async[F].fromFutureDelay { implicit ec =>
               val enqueue = enqueueFuture[F, Chunk[T]](queue, promise) _
+              
               cursor
                 .foldBulksM(()) { (_, xs) =>
                   val chunk = Chunk.seq(xs.toSeq)

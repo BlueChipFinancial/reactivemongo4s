@@ -1,7 +1,8 @@
 ### Usage
 ##### Examples
 ```scala
-override def run(args: List[String]): IO[ExitCode] =
+import com.bcf.reactivemongo4s.implicits
+
 override def run(args: List[String]): IO[ExitCode] =
   MongoClientF[IO](Seq("localhost"), MongoConnectionOptions.default.copy(keepAlive = true, readConcern = ReadConcern.Majority))
     .use { con =>
