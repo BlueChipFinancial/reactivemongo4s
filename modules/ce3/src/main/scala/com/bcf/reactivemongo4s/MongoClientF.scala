@@ -7,10 +7,11 @@ import cats.effect.kernel.Resource
 import cats.syntax.all._
 import com.bcf.reactivemongo4s.helpers._
 import reactivemongo.api
-import reactivemongo.api.{AsyncDriver, MongoConnectionOptions}
+import reactivemongo.api.{AsyncDriver, FailoverStrategy, MongoConnectionOptions}
 
 trait MongoClientF[F[_]] {
-  def getDatabase(name: String): F[MongoDatabaseF[F]]
+  def getDatabase(name: String, failoverStrategy: FailoverStrategy = FailoverStrategy()): F[MongoDatabaseF[F]]
+  def auth(db: String, user: String, password: String, failoverStrategy: FailoverStrategy = FailoverStrategy()): F[Unit]
 }
 
 object MongoClientF {
@@ -18,8 +19,11 @@ object MongoClientF {
       private val connection: api.MongoConnection
   )(implicit val F: Async[F])
       extends MongoClientF[F] {
-    override def getDatabase(name: String): F[MongoDatabaseF[F]] =
+    override def getDatabase(name: String, failoverStrategy: FailoverStrategy = FailoverStrategy()): F[MongoDatabaseF[F]] =
       F.fromFutureDelay(connection.database(name)(_)).map(MongoDatabaseF[F](_))
+
+    override def auth(db: String, user: String, password: String, failoverStrategy: FailoverStrategy): F[Unit] =
+      F.fromFutureDelay(connection.authenticate(db, user, password, failoverStrategy)(_)).void
   }
 
   def apply[F[_]](

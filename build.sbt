@@ -62,7 +62,7 @@ lazy val commonSettings = Seq(
 lazy val ce2 = (project in file("modules/ce2"))
   .settings(
     name := "reactivemongo4s",
-    version := "1.1-SNAPSHOT",
+    version := "0.1.0",
     commonSettings,
     libraryDependencies ++= coreDependencies ++ ce2Dependencies,
     // releases
@@ -76,7 +76,7 @@ lazy val ce2 = (project in file("modules/ce2"))
 lazy val ce3 = (project in file("modules/ce3"))
   .settings(
     name := "reactivemongo4s",
-    version := "2.1-SNAPSHOT",
+    version := "0.2.0",
     commonSettings,
     libraryDependencies ++= coreDependencies ++ ce3Dependencies,
     // releases
