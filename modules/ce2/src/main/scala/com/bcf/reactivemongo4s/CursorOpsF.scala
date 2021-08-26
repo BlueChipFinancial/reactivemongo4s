@@ -31,57 +31,103 @@ trait CursorOpsF {
     private def enqueueFuture[F[_]: ConcurrentEffect, A](queue: Queue[F, A], promise: Deferred[F, _])(el: A) =
       ConcurrentEffect[F].toIO(Concurrent[F].race(promise.get, queue.enqueue(Stream(el)).compile.drain)).unsafeToFuture()
 
-    def toStream[F[_]: ConcurrentEffect: MongoExecutor](queueCapacity: Int): Stream[F, T] =
+    def toStream[F[_]: ConcurrentEffect: MongoExecutor](
+        queueCapacity: Int,
+        errorHandler: CursorErrorStrategy = CursorErrorStrategy.Fail
+    ): Stream[F, T] =
+      if (cursor.tailable) nonTerminatingStream(queueCapacity, errorHandler)
+      else terminatingStream(queueCapacity, errorHandler)
+
+    private def terminatingStream[F[_]: ConcurrentEffect: MongoExecutor](
+        queueCapacity: Int,
+        errorHandler: CursorErrorStrategy
+    ): Stream[F, T] =
       for {
-        queue <- Stream.eval(Queue.bounded[F, Option[Chunk[T]]](queueCapacity))
+        queue <- Stream.eval(Queue.bounded[F, Either[Throwable, Option[Chunk[T]]]](queueCapacity))
         promise <- Stream.eval(Deferred[F, Unit])
         _ <- Stream.bracket {
           Async[F].fromFutureDelay { implicit ec =>
-            val enqueue = enqueueFuture[F, Option[Chunk[T]]](queue, promise) _
+            val enqueue = enqueueFuture[F, Either[Throwable, Option[Chunk[T]]]](queue, promise) _
 
             cursor
-              .foldBulksM(()) { (_, xs) =>
-                val chunk = Chunk.seq(xs.toSeq)
-                enqueue(chunk.some).flatMap {
-                  case Left(_) =>
-                    enqueue(None).map(_ => Cursor.Done())
-                  case Right(_) =>
-                    Future.successful(Cursor.Cont())
-                }
-              }
-              .flatMap(_ => enqueue(None))
-
-            Future.successful(promise)
-          }
-        }(_.complete(()).void)
-        stream <- StreamHelpers.fromQueueNoneTerminatedChunk(queue)
-      } yield stream
-
-    def toStreamUnterminated[F[_]: ConcurrentEffect: MongoExecutor](capacity: Int): Stream[F, T] =
-      for {
-        queue <- Stream.eval(Queue.bounded[F, Chunk[T]](capacity))
-        promise <- Stream.eval(Deferred[F, Unit])
-        _ <- Stream.bracket {
-          Async[F].fromFutureDelay { implicit ec =>
-            val enqueue = enqueueFuture[F, Chunk[T]](queue, promise) _
-
-            cursor
-              .foldBulksM(()) { (_, xs) =>
-                val chunk = Chunk.seq(xs.toSeq)
-                if (chunk.isEmpty && cursor.tailable)
-                  Future.successful(Cursor.Cont(()))
-                else
-                  enqueue(chunk).flatMap {
+              .foldBulksM(())(
+                { (_, xs) =>
+                  val chunk = Chunk.seq(xs.toSeq)
+                  enqueue(chunk.some.asRight).flatMap {
                     case Left(_) =>
-                      Future.successful(Cursor.Done())
+                      enqueue(None.asRight).map(_ => Cursor.Done())
                     case Right(_) =>
                       Future.successful(Cursor.Cont())
                   }
-              }
+                },
+                (_, err) =>
+                  errorHandler match {
+                    case CursorErrorStrategy.Fail =>
+                      enqueue(err.asLeft)
+                      Cursor.Fail(err)
+                    case CursorErrorStrategy.Done =>
+                      enqueue(None.asRight)
+                      Cursor.Done()
+                    case CursorErrorStrategy.Cont =>
+                      Cursor.Cont()
+                  }
+              )
+              .flatMap(_ => enqueue(None.asRight))
+
             Future.successful(promise)
           }
         }(_.complete(()).void)
-        stream <- StreamHelpers.fromQueueUnterminatedChunk(queue)
+        stream <-
+          queue.dequeue
+            .flatTap(Stream.emit)
+            .rethrow
+            .unNoneTerminate
+            .flatMap(Stream.chunk)
+      } yield stream
+
+    private def nonTerminatingStream[F[_]: ConcurrentEffect: MongoExecutor](
+        capacity: Int,
+        errorHandler: CursorErrorStrategy
+    ): Stream[F, T] =
+      for {
+        queue <- Stream.eval(Queue.bounded[F, Either[Throwable, Chunk[T]]](capacity))
+        promise <- Stream.eval(Deferred[F, Unit])
+        _ <- Stream.bracket {
+          Async[F].fromFutureDelay { implicit ec =>
+            val enqueue = enqueueFuture[F, Either[Throwable, Chunk[T]]](queue, promise) _
+
+            cursor
+              .foldBulksM(())(
+                { (_, xs) =>
+                  val chunk = Chunk.seq(xs.toSeq)
+                  if (chunk.isEmpty) Future.successful(Cursor.Cont(()))
+                  else
+                    enqueue(chunk.asRight).flatMap {
+                      case Left(_) =>
+                        Future.successful(Cursor.Done())
+                      case Right(_) =>
+                        Future.successful(Cursor.Cont())
+                    }
+                },
+                (_, err) =>
+                  errorHandler match {
+                    case CursorErrorStrategy.Fail =>
+                      enqueue(err.asLeft)
+                      Cursor.Fail(err)
+                    case CursorErrorStrategy.Done =>
+                      Cursor.Done()
+                    case CursorErrorStrategy.Cont =>
+                      Cursor.Cont()
+                  }
+              )
+            Future.successful(promise)
+          }
+        }(_.complete(()).void)
+        stream <-
+          queue.dequeue
+            .flatTap(Stream.emit)
+            .rethrow
+            .flatMap(Stream.chunk)
       } yield stream
   }
 }
