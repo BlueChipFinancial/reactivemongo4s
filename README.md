@@ -1,11 +1,11 @@
 ### Installation
 ##### CE2
 ```sbt
-libraryDependencies += "com.bcf" %% "reactivemongo4s" % "0.1.0"
+libraryDependencies += "com.bcf" %% "reactivemongo4s" % "0.1.1"
 ```
 ##### CE3
 ```sbt
-libraryDependencies += "com.bcf" %% "reactivemongo4s" % "0.2.0"
+libraryDependencies += "com.bcf" %% "reactivemongo4s" % "0.2.1"
 ```
 
 ### Usage
