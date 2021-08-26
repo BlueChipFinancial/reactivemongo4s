@@ -21,7 +21,7 @@ object CursorOpsSuite extends SimpleIOSuite {
     val elements = 1 to 1000
     val cursor = new FailAtCursor[Int](elements, 2, new NoSuchElementException, 10)
     for {
-      a <- cursor.toStream[IO](10, CursorErrorHandler.Done).compile.toList
+      a <- cursor.toStream[IO](10, CursorErrorStrategy.Done).compile.toList
       b <- IO((1 to 20).toList)
     } yield expect(a == b)
   }
@@ -30,7 +30,7 @@ object CursorOpsSuite extends SimpleIOSuite {
     val elements = 1 to 1000
     val cursor = new FailAtCursor[Int](elements, 2, new NoSuchElementException, 10)
     for {
-      a <- cursor.toStream[IO](10, CursorErrorHandler.Cont).compile.toList
+      a <- cursor.toStream[IO](10, CursorErrorStrategy.Cont).compile.toList
       b <- IO(((1 to 20) ++ (31 to 1000)).toList)
     } yield expect(a == b)
   }
@@ -41,7 +41,7 @@ object CursorOpsSuite extends SimpleIOSuite {
     for {
       a <-
         cursor
-          .toStream[IO](100, CursorErrorHandler.Fail)
+          .toStream[IO](100, CursorErrorStrategy.Fail)
           .handleErrorWith {
             case _: NoSuchElementException => fs2.Stream(-1)
           }

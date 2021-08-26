@@ -26,9 +26,17 @@ lazy val noPublishSettings = Seq(
 
 lazy val root = (project in file("."))
   .settings(noPublishSettings)
-  .aggregate(ce2, ce3)
+  .aggregate(ce2, ce3, core)
+
+lazy val core = (project in file ("modules/core"))
+  .settings(
+    commonSettings,
+    noPublishSettings,
+    libraryDependencies ++= coreDependencies,
+  )
 
 lazy val commonSettings = Seq(
+  scalacOptions += "-Ywarn-unused",
   scalaVersion := "2.13.5",
   organization := "com.bcf",
   organizationName := "Bluechip Financial",
@@ -62,7 +70,7 @@ lazy val commonSettings = Seq(
 lazy val ce2 = (project in file("modules/ce2"))
   .settings(
     name := "reactivemongo4s",
-    version := "0.1.0",
+    version := "0.1.1",
     commonSettings,
     libraryDependencies ++= coreDependencies ++ ce2Dependencies,
     // releases
@@ -71,12 +79,12 @@ lazy val ce2 = (project in file("modules/ce2"))
       if (isSnapshot.value) Some("Artifactory Realm" at base + ";build.timestamp=" + new Date().getTime)
       else Some("Artifactory Realm" at base)
     },
-  )
+  ).dependsOn(core % "compile->compile;test->test")
 
 lazy val ce3 = (project in file("modules/ce3"))
   .settings(
     name := "reactivemongo4s",
-    version := "0.2.0",
+    version := "0.2.1",
     commonSettings,
     libraryDependencies ++= coreDependencies ++ ce3Dependencies,
     // releases
@@ -85,4 +93,4 @@ lazy val ce3 = (project in file("modules/ce3"))
       if (isSnapshot.value) Some("Artifactory Realm" at base + ";build.timestamp=" + new Date().getTime)
       else Some("Artifactory Realm" at base)
     },
-  )
+  ).dependsOn(core % "compile->compile;test->test")

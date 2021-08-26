@@ -8,7 +8,7 @@ import cats.effect.{Async, Deferred}
 import cats.implicits._
 import com.bcf.reactivemongo4s.helpers._
 import fs2.{Chunk, Stream}
-import reactivemongo.api.{Cursor, CursorOps}
+import reactivemongo.api.Cursor
 import reactivemongo.api.Cursor.ErrorHandler
 
 trait CursorOpsF {
@@ -30,14 +30,14 @@ trait CursorOpsF {
 
     def toStream[F[_]: Async](
         queueCapacity: Int,
-        errorHandler: CursorErrorHandler = CursorErrorHandler.Fail
+        errorHandler: CursorErrorStrategy = CursorErrorStrategy.Fail
     ): Stream[F, T] =
       if (cursor.tailable) nonTerminatingStream(queueCapacity, errorHandler)
       else terminatingStream(queueCapacity, errorHandler)
 
     private def terminatingStream[F[_]: Async](
         queueCapacity: Int,
-        errorHandler: CursorErrorHandler
+        errorHandler: CursorErrorStrategy
     ): Stream[F, T] =
       for {
         dispatcher <- Stream.resource(Dispatcher[F])
@@ -61,13 +61,13 @@ trait CursorOpsF {
                 },
                 (_, err) =>
                   errorHandler match {
-                    case CursorErrorHandler.Fail =>
+                    case CursorErrorStrategy.Fail =>
                       enqueue(err.asLeft.some)
                       Cursor.Fail(err)
-                    case CursorErrorHandler.Done =>
+                    case CursorErrorStrategy.Done =>
                       enqueue(None)
                       Cursor.Done()
-                    case CursorErrorHandler.Cont =>
+                    case CursorErrorStrategy.Cont =>
                       Cursor.Cont()
                   }
               )
@@ -86,33 +86,45 @@ trait CursorOpsF {
 
     private def nonTerminatingStream[F[_]: Async](
         capacity: Int,
-        errorHandler: CursorErrorHandler
+        errorHandler: CursorErrorStrategy
     ): Stream[F, T] =
       for {
         dispatcher <- Stream.resource(Dispatcher[F])
-        queue <- Stream.eval(Queue.bounded[F, Chunk[T]](capacity))
+        queue <- Stream.eval(Queue.bounded[F, Either[Throwable, Chunk[T]]](capacity))
         promise <- Stream.eval(Deferred[F, Unit])
         _ <- Stream.bracket {
           Async[F].fromFutureDelay { implicit ec =>
-            def enqueue(v: Chunk[T]): Future[Either[Unit, Unit]] =
+            def enqueue(v: Either[Throwable, Chunk[T]]): Future[Either[Unit, Unit]] =
               dispatcher.unsafeToFuture(Async[F].race(promise.get, queue.offer(v)))
 
             cursor
-              .foldBulksM(()) { (_, xs) =>
-                val chunk = Chunk.seq(xs.toSeq)
-                if (chunk.isEmpty) Future.successful(Cursor.Cont(()))
-                else
-                  enqueue(chunk).flatMap {
-                    case Left(_) =>
-                      Future.successful(Cursor.Done())
-                    case Right(_) =>
-                      Future.successful(Cursor.Cont())
+              .foldBulksM(())(
+                { (_, xs) =>
+                  val chunk = Chunk.seq(xs.toSeq)
+                  if (chunk.isEmpty) Future.successful(Cursor.Cont(()))
+                  else
+                    enqueue(chunk.asRight).flatMap {
+                      case Left(_) =>
+                        Future.successful(Cursor.Done())
+                      case Right(_) =>
+                        Future.successful(Cursor.Cont())
+                    }
+                },
+                (_, err) =>
+                  errorHandler match {
+                    case CursorErrorStrategy.Fail =>
+                      enqueue(err.asLeft)
+                      Cursor.Fail(err)
+                    case CursorErrorStrategy.Done =>
+                      Cursor.Done()
+                    case CursorErrorStrategy.Cont =>
+                      Cursor.Cont()
                   }
-              }
+              )
             Future.successful(promise)
           }
         }(_.complete(()).void)
-        stream <- Stream.fromQueueUnterminatedChunk(queue)
+        stream <- Stream.fromQueueUnterminated(queue).rethrow.unchunks
       } yield stream
   }
 }

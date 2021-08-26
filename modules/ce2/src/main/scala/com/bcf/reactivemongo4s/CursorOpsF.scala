@@ -13,7 +13,7 @@ import reactivemongo.api.Cursor
 import reactivemongo.api.Cursor.ErrorHandler
 
 trait CursorOpsF {
-  implicit final class CursorOpsFImpl[T](val cursor: Cursor[T]) {
+  implicit final class CursorOpsFImpl[T](val cursor: Cursor.WithOps[T]) {
     def headOptionF[F[_]: Async: MongoExecutor]: F[Option[T]] =
       Async[F].fromFutureDelay(cursor.headOption(_))
 
@@ -33,7 +33,14 @@ trait CursorOpsF {
 
     def toStream[F[_]: ConcurrentEffect: MongoExecutor](
         queueCapacity: Int,
-        errorHandler: CursorErrorHandler = CursorErrorHandler.Fail
+        errorHandler: CursorErrorStrategy = CursorErrorStrategy.Fail
+    ): Stream[F, T] =
+      if (cursor.tailable) nonTerminatingStream(queueCapacity, errorHandler)
+      else terminatingStream(queueCapacity, errorHandler)
+
+    private def terminatingStream[F[_]: ConcurrentEffect: MongoExecutor](
+        queueCapacity: Int,
+        errorHandler: CursorErrorStrategy
     ): Stream[F, T] =
       for {
         queue <- Stream.eval(Queue.bounded[F, Either[Throwable, Option[Chunk[T]]]](queueCapacity))
@@ -55,13 +62,13 @@ trait CursorOpsF {
                 },
                 (_, err) =>
                   errorHandler match {
-                    case CursorErrorHandler.Fail =>
+                    case CursorErrorStrategy.Fail =>
                       enqueue(err.asLeft)
                       Cursor.Fail(err)
-                    case CursorErrorHandler.Done =>
+                    case CursorErrorStrategy.Done =>
                       enqueue(None.asRight)
                       Cursor.Done()
-                    case CursorErrorHandler.Cont =>
+                    case CursorErrorStrategy.Cont =>
                       Cursor.Cont()
                   }
               )
@@ -70,37 +77,57 @@ trait CursorOpsF {
             Future.successful(promise)
           }
         }(_.complete(()).void)
-        stream <- queue.dequeue.rethrow.unNoneTerminate.flatMap(Stream.chunk)
+        stream <-
+          queue.dequeue
+            .flatTap(Stream.emit)
+            .rethrow
+            .unNoneTerminate
+            .flatMap(Stream.chunk)
       } yield stream
 
-    def toStreamUnterminated[F[_]: ConcurrentEffect: MongoExecutor](capacity: Int): Stream[F, T] =
+    private def nonTerminatingStream[F[_]: ConcurrentEffect: MongoExecutor](
+        capacity: Int,
+        errorHandler: CursorErrorStrategy
+    ): Stream[F, T] =
       for {
-        queue <- Stream.eval(Queue.bounded[F, Chunk[T]](capacity))
+        queue <- Stream.eval(Queue.bounded[F, Either[Throwable, Chunk[T]]](capacity))
         promise <- Stream.eval(Deferred[F, Unit])
         _ <- Stream.bracket {
           Async[F].fromFutureDelay { implicit ec =>
-            val enqueue = enqueueFuture[F, Chunk[T]](queue, promise) _
+            val enqueue = enqueueFuture[F, Either[Throwable, Chunk[T]]](queue, promise) _
 
             cursor
-              .foldBulksM(()) { (_, xs) =>
-                val chunk = Chunk.seq(xs.toSeq)
-                if (
-                  chunk.isEmpty
-//                  && cursor.tailable TODO had to remove this to extend TestCursor in tests
-                )
-                  Future.successful(Cursor.Cont(()))
-                else
-                  enqueue(chunk).flatMap {
-                    case Left(_) =>
-                      Future.successful(Cursor.Done())
-                    case Right(_) =>
-                      Future.successful(Cursor.Cont())
+              .foldBulksM(())(
+                { (_, xs) =>
+                  val chunk = Chunk.seq(xs.toSeq)
+                  if (chunk.isEmpty) Future.successful(Cursor.Cont(()))
+                  else
+                    enqueue(chunk.asRight).flatMap {
+                      case Left(_) =>
+                        Future.successful(Cursor.Done())
+                      case Right(_) =>
+                        Future.successful(Cursor.Cont())
+                    }
+                },
+                (_, err) =>
+                  errorHandler match {
+                    case CursorErrorStrategy.Fail =>
+                      enqueue(err.asLeft)
+                      Cursor.Fail(err)
+                    case CursorErrorStrategy.Done =>
+                      Cursor.Done()
+                    case CursorErrorStrategy.Cont =>
+                      Cursor.Cont()
                   }
-              }
+              )
             Future.successful(promise)
           }
         }(_.complete(()).void)
-        stream <- StreamHelpers.fromQueueUnterminatedChunk(queue)
+        stream <-
+          queue.dequeue
+            .flatTap(Stream.emit)
+            .rethrow
+            .flatMap(Stream.chunk)
       } yield stream
   }
 }
