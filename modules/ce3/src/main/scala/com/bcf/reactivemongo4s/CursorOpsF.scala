@@ -8,11 +8,12 @@ import cats.effect.{Async, Deferred}
 import cats.implicits._
 import com.bcf.reactivemongo4s.helpers._
 import fs2.{Chunk, Stream}
-import reactivemongo.api.Cursor
+import reactivemongo.api.{Cursor, CursorOps}
 import reactivemongo.api.Cursor.ErrorHandler
 
 trait CursorOpsF {
-  implicit final class CursorOpsFImpl[T](val cursor: Cursor[T]) {
+
+  implicit final class CursorOpsFImpl[T](val cursor: Cursor.WithOps[T]) {
     def headOptionF[F[_]: Async]: F[Option[T]] =
       Async[F].fromFutureDelay(cursor.headOption(_))
 
@@ -30,6 +31,13 @@ trait CursorOpsF {
     def toStream[F[_]: Async](
         queueCapacity: Int,
         errorHandler: CursorErrorHandler = CursorErrorHandler.Fail
+    ): Stream[F, T] =
+      if (cursor.tailable) nonTerminatingStream(queueCapacity, errorHandler)
+      else terminatingStream(queueCapacity, errorHandler)
+
+    private def terminatingStream[F[_]: Async](
+        queueCapacity: Int,
+        errorHandler: CursorErrorHandler
     ): Stream[F, T] =
       for {
         dispatcher <- Stream.resource(Dispatcher[F])
@@ -68,10 +76,18 @@ trait CursorOpsF {
             Future.successful(promise)
           }
         }(_.complete(()).void)
-        stream <- Stream.fromQueueNoneTerminated(queue).rethrow.flatMap(Stream.chunk)
+        stream <-
+          Stream
+            .fromQueueNoneTerminated(queue)
+            .evalTap(Async[F].pure)
+            .rethrow
+            .flatMap(Stream.chunk)
       } yield stream
 
-    def toStreamUnterminated[F[_]: Async](capacity: Int): Stream[F, T] =
+    private def nonTerminatingStream[F[_]: Async](
+        capacity: Int,
+        errorHandler: CursorErrorHandler
+    ): Stream[F, T] =
       for {
         dispatcher <- Stream.resource(Dispatcher[F])
         queue <- Stream.eval(Queue.bounded[F, Chunk[T]](capacity))
@@ -84,11 +100,7 @@ trait CursorOpsF {
             cursor
               .foldBulksM(()) { (_, xs) =>
                 val chunk = Chunk.seq(xs.toSeq)
-                if (
-                  chunk.isEmpty
-//                  && cursor.tailable TODO had to remove this to extend TestCursor in tests
-                )
-                  Future.successful(Cursor.Cont(()))
+                if (chunk.isEmpty) Future.successful(Cursor.Cont(()))
                 else
                   enqueue(chunk).flatMap {
                     case Left(_) =>

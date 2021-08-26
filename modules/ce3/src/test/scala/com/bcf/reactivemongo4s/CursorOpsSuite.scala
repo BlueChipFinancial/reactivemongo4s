@@ -3,8 +3,8 @@ package com.bcf.reactivemongo4s
 import java.util.NoSuchElementException
 
 import cats.effect.IO
-import com.bcf.reactivemongo4s.cursors.{FailAtCursor, NormalCursor}
 import com.bcf.reactivemongo4s.implicits._
+import reactivemongo.api.{FailAtCursor, NormalCursor}
 import weaver._
 
 object CursorOpsSuite extends SimpleIOSuite {
@@ -47,6 +47,6 @@ object CursorOpsSuite extends SimpleIOSuite {
           }
           .compile
           .toList
-    } yield expect(a.contains(-1))
+    } yield expect(a == ((1 to 20).toList :+ -1))
   }
 }
