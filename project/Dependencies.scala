@@ -5,6 +5,9 @@ object Dependencies {
   object v {
     val reactiveMongo = "1.0.6"
     val scala = "2.13.6"
+    val scalaTest = "3.2.9"
+    val joda = "2.10.10"
+    val cats = "2.3.0"
   }
 
   object v2 {
@@ -34,5 +37,11 @@ object Dependencies {
     "org.typelevel" %% "cats-effect" % v2.catsEffect,
     "co.fs2" %% "fs2-core" % v2.fs2,
     "com.disneystreaming" %% "weaver-cats" % v2.weaver % Test
+  )
+
+  val dslDependencies = Seq(
+    "org.scalatest" %% "scalatest" % v.scalaTest % "test",
+    "joda-time" % "joda-time" % v.joda,
+    "org.typelevel" %% "cats-core" % v.cats
   )
 }

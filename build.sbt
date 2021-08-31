@@ -1,12 +1,14 @@
 import java.util.Date
 
 import Dependencies._
-import sbtgitflowversion.BranchMatcher._
-import sbtgitflowversion.VersionCalculator._
 
 ThisBuild / credentials += Credentials(Path.userHome / ".sbt" / ".credentials")
 
 addCommandAlias("f", ";scalafixAll;scalafmtAll")
+
+val ce3Ver = "0.1.0-SNAPSHOT"
+val ce2Ver = "0.1.0-SNAPSHOT"
+val dslVer = "0.0.1-SNAPSHOT"
 
 def scalafixRunExplicitly: Def.Initialize[Task[Boolean]] =
   Def.task {
@@ -26,9 +28,9 @@ lazy val noPublishSettings = Seq(
 
 lazy val root = (project in file("."))
   .settings(noPublishSettings)
-  .aggregate(ce2, ce3, core)
+  .aggregate(ce2, ce3, core, dsl)
 
-lazy val core = (project in file ("modules/core"))
+lazy val core = (project in file("modules/core"))
   .settings(
     commonSettings,
     noPublishSettings,
@@ -54,23 +56,13 @@ lazy val commonSettings = Seq(
   semanticdbVersion := scalafixSemanticdb.revision, // use Scalafix compatible version
   testFrameworks += new TestFramework("weaver.framework.CatsEffect"),
   //Exclude ScalaTest brought in from transitive dependencies
-  testFrameworks -= TestFrameworks.ScalaTest,
-  // auto-generate version based on git
-  tagMatcher := TagMatcher.prefix("v"),
-  versionPolicy := Seq(
-    exact("master") -> currentTag(),
-    exact("develop") -> nextMinor(),
-    prefix("release/v") -> matching(),
-    prefixes("feature/", "bugfix/", "hotfix/") -> lastVersionWithMatching(),
-    any -> currentTag()
-  ),
-  Global / excludeLintKeys ++= Set(tagMatcher, versionPolicy)
+  testFrameworks -= TestFrameworks.ScalaTest
 )
 
 lazy val ce2 = (project in file("modules/ce2"))
   .settings(
-    name := "reactivemongo4s",
-    version := "0.1.1",
+    name := "reactivemongo4s-ce2",
+    version := ce2Ver,
     commonSettings,
     libraryDependencies ++= coreDependencies ++ ce2Dependencies,
     // releases
@@ -83,8 +75,8 @@ lazy val ce2 = (project in file("modules/ce2"))
 
 lazy val ce3 = (project in file("modules/ce3"))
   .settings(
-    name := "reactivemongo4s",
-    version := "0.2.1",
+    name := "reactivemongo4s-ce3",
+    version := ce3Ver,
     commonSettings,
     libraryDependencies ++= coreDependencies ++ ce3Dependencies,
     // releases
@@ -94,3 +86,18 @@ lazy val ce3 = (project in file("modules/ce3"))
       else Some("Artifactory Realm" at base)
     },
   ).dependsOn(core % "compile->compile;test->test")
+
+lazy val dsl = (project in file("modules/dsl"))
+  .settings(
+    commonSettings,
+    name := "reactivemongo4s-dsl",
+    version := dslVer,
+    libraryDependencies ++= coreDependencies ++ dslDependencies,
+    testFrameworks += TestFrameworks.ScalaTest,
+    // releases
+    publishTo := {
+      val base = "https://bluechipfinancial.jfrog.io/artifactory/sbt-release-local"
+      if (isSnapshot.value) Some("Artifactory Realm" at base + ";build.timestamp=" + new Date().getTime)
+      else Some("Artifactory Realm" at base)
+    }
+  )
