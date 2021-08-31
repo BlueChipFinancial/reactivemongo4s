@@ -1,7 +1,6 @@
 package com.bcf.reactivemongo4s.dsl
 
 import com.bcf.reactivemongo4s.dsl.util.Handlers._
-import com.bcf.reactivemongo4s.dsl.util.Logger
 import org.joda.time.DateTime
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
@@ -13,7 +12,6 @@ class BsonDslSpec extends AnyFlatSpec with Matchers {
 
   "A BsonDsl" should "create complex document 1" in {
     val dsl: BSONDocument = "age" $gt 50 $lt 60
-    Logger.debug(dsl)
     val expected = BSONDocument("age" -> BSONDocument("$gt" -> 50, "$lt" -> 60))
     dsl shouldBe expected
   }
@@ -62,7 +60,6 @@ class BsonDslSpec extends AnyFlatSpec with Matchers {
   // Comparison Operators
   it should "create complex document 2" in {
     val dsl: BSONDocument = "age" $gte 50 $lte 60
-    Logger.debug(dsl)
     val expected = BSONDocument("age" -> BSONDocument("$gte" -> 50, "$lte" -> 60))
     dsl shouldBe expected
   }
@@ -81,7 +78,6 @@ class BsonDslSpec extends AnyFlatSpec with Matchers {
 
   it should "create $in" in {
     val dsl: BSONDocument = "age" $in (1, 2, 3)
-    Logger.debug(dsl)
     val expected = BSONDocument("age" -> BSONDocument("$in" -> BSONArray(1, 2, 3)))
     dsl shouldBe expected
   }
@@ -100,14 +96,12 @@ class BsonDslSpec extends AnyFlatSpec with Matchers {
 
   it should "create $ne" in {
     val dsl: BSONDocument = "name" $ne "foo"
-    Logger.debug(dsl)
     val expected = BSONDocument("name" -> BSONDocument("$ne" -> "foo"))
     dsl shouldBe expected
   }
 
   it should "create $nin" in {
     val dsl: BSONDocument = "age" $nin (1, 2, 3)
-    Logger.debug(dsl)
     val expected = BSONDocument("age" -> BSONDocument("$nin" -> BSONArray(1, 2, 3)))
     dsl shouldBe expected
   }
@@ -118,7 +112,6 @@ class BsonDslSpec extends AnyFlatSpec with Matchers {
   // Logical Operators
   it should "create $or" in {
     val dsl = $or("qty" $lt 20 $gte 10, "sale" $eq true)
-    Logger.debug(dsl)
     val expected = BSONDocument(
       "$or" -> BSONArray(
         BSONDocument("qty" -> BSONDocument("$lt" -> 20, "$gte" -> 10)),
@@ -130,21 +123,18 @@ class BsonDslSpec extends AnyFlatSpec with Matchers {
 
   it should "create $and" in {
     val dsl = $and("name" $eq "foo", "surname" $eq "bar", "age" $eq 32)
-    Logger.debug(dsl)
     val expected = BSONDocument("$and" -> BSONArray(BSONDocument("name" -> "foo"), BSONDocument("surname" -> "bar"), BSONDocument("age" -> 32)))
     dsl shouldBe expected
   }
 
   it should "create $not" in {
     val dsl: BSONDocument = "price" $not { _ $gte 5.1 }
-    Logger.debug(dsl)
     val expected = BSONDocument("price" -> BSONDocument("$not" -> BSONDocument("$gte" -> 5.1)))
     dsl shouldBe expected
   }
 
   it should "create $nor" in {
     val dsl = $nor("price" $eq 1.99, "qty" $lt 20, "sale" $eq true)
-    Logger.debug(dsl)
     val expected =
       BSONDocument("$nor" -> BSONArray(BSONDocument("price" -> 1.99), BSONDocument("qty" -> BSONDocument("$lt" -> 20)), BSONDocument("sale" -> true)))
     dsl shouldBe expected
@@ -180,7 +170,6 @@ class BsonDslSpec extends AnyFlatSpec with Matchers {
   // Evaluation Operators
   it should "create $mod" in {
     val dsl: BSONDocument = "qty" $mod (5, 0)
-    Logger.debug(dsl)
     val expected = BSONDocument("qty" -> BSONDocument("$mod" -> BSONArray(5, 0)))
     dsl shouldBe expected
   }
@@ -235,21 +224,18 @@ class BsonDslSpec extends AnyFlatSpec with Matchers {
   // Top Level Field Update Operators
   it should "create $inc" in {
     val dsl = $inc("sold" -> 1, "stock" -> -1)
-    Logger.debug(dsl)
     val expected = BSONDocument("$inc" -> BSONDocument("sold" -> 1, "stock" -> -1))
     dsl shouldBe expected
   }
 
   it should "create $mul" in {
     val dsl = $mul("price" -> 1.25)
-    Logger.debug(dsl)
     val expected = BSONDocument("$mul" -> BSONDocument("price" -> 1.25))
     dsl shouldBe expected
   }
 
   it should "create $rename" in {
     val dsl = $rename("color" -> "colour", "realize" -> "realise")
-    Logger.debug(dsl)
     val expected = BSONDocument("$rename" -> BSONDocument("color" -> "colour", "realize" -> "realise"))
     dsl shouldBe expected
   }
@@ -294,21 +280,19 @@ class BsonDslSpec extends AnyFlatSpec with Matchers {
 
   it should "create $min" in {
     val dsl = $min("lowScore" -> 150)
-    Logger.debug(dsl)
+
     val expected = BSONDocument("$min" -> BSONDocument("lowScore" -> 150))
     dsl shouldBe expected
   }
 
   it should "create $max" in {
     val dsl = $max("highScore" -> 950)
-    Logger.debug(dsl)
     val expected = BSONDocument("$max" -> BSONDocument("highScore" -> 950))
     dsl shouldBe expected
   }
 
   it should "create $currentDate" in {
     val dsl = $currentDate("lastModified" -> true, "lastModifiedTS" -> "timestamp")
-    Logger.debug(dsl)
     val expected = BSONDocument("$currentDate" -> BSONDocument("lastModified" -> true, "lastModifiedTS" -> BSONDocument("$type" -> "timestamp")))
     dsl shouldBe expected
   }
@@ -354,8 +338,6 @@ class BsonDslSpec extends AnyFlatSpec with Matchers {
         )
       )
     )
-
-    Logger.debug(dsl)
 
     dsl shouldBe expected
   }
