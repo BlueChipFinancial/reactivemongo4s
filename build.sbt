@@ -26,13 +26,28 @@ lazy val noPublishSettings = Seq(
 
 lazy val root = (project in file("."))
   .settings(noPublishSettings)
-  .aggregate(ce2, ce3, core)
+  .aggregate(ce2, ce3, core, dsl)
 
-lazy val core = (project in file ("modules/core"))
+lazy val core = (project in file("modules/core"))
   .settings(
     commonSettings,
     noPublishSettings,
     libraryDependencies ++= coreDependencies,
+  )
+
+lazy val dsl = (project in file("modules/dsl"))
+  .settings(
+    commonSettings,
+    name := "reactivemongo4s-dsl",
+    version := "0.0.1",
+    libraryDependencies ++= coreDependencies ++ dslDependencies,
+    testFrameworks += TestFrameworks.ScalaTest,
+    // releases
+    publishTo := {
+      val base = "https://bluechipfinancial.jfrog.io/artifactory/sbt-release-local"
+      if (isSnapshot.value) Some("Artifactory Realm" at base + ";build.timestamp=" + new Date().getTime)
+      else Some("Artifactory Realm" at base)
+    }
   )
 
 lazy val commonSettings = Seq(
