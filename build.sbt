@@ -33,7 +33,11 @@ lazy val root = (project in file("."))
 lazy val core = (project in file("modules/core"))
   .settings(
     commonSettings,
-    noPublishSettings,
+    publishTo := {
+      val base = "https://bluechipfinancial.jfrog.io/artifactory/sbt-release-local"
+      if (isSnapshot.value) Some("Artifactory Realm" at base + ";build.timestamp=" + new Date().getTime)
+      else Some("Artifactory Realm" at base)
+    },
     libraryDependencies ++= coreDependencies,
   )
 
