@@ -1,23 +1,30 @@
 ### Installation
 ##### CE2
 ```sbt
-libraryDependencies += "com.bcf" %% "reactivemongo4s" % "0.1.1"
+libraryDependencies += "com.bcf" %% "reactivemongo4s-ce2" % "0.1.0"
 ```
 ##### CE3
 ```sbt
-libraryDependencies += "com.bcf" %% "reactivemongo4s" % "0.2.1"
+libraryDependencies += "com.bcf" %% "reactivemongo4s-ce3" % "0.1.0"
+```
+
+##### DSL
+```sbt
+libraryDependencies += "com.bcf" %% "reactivemongo4s-dsl" % "0.1.0"
 ```
 
 ### Usage
 ##### Examples
+###### Streaming
 ```scala
 import com.bcf.reactivemongo4s.implicits._
+import com.bcf.reactivemongo4s.dsl.BsonDsl._
 
 val col: BSONCollection = ???
 
 override def run(args: List[String]): IO[ExitCode] =
     for {
-        res <- col.find(BSONDocument("b" -> BSONDocument("$exists" -> true)))
+        res <- col.find("b" $exists true) 
                   .cursor[SomeModel]()
                   .toStream[IO](100)
         _ <- res.evalMap(model => IO.println(s"Got $model"))
@@ -26,15 +33,22 @@ override def run(args: List[String]): IO[ExitCode] =
         count <- col.countF[IO]
         _ <- IO.println("Count: " + count)
         countAggregated <- col.aggregateWith[SomeModel]() { framework =>
-          import framework.{Count, Match}
-        
-          List(
-            Match(BSONDocument("b" -> BSONDocument("$gte" -> 1000))),
-            Count("total")
-          )
-        }.headF[IO]
+              import framework.{Count, Match}
+            
+              List(
+                Match("b" $gte 1000),
+                Count("total")
+              )
+          }.headF[IO]
         _ <- IO.println("countAggregated: " + countAggregated)
     } yield ()
+```
+
+###### DSL
+```scala
+import com.bcf.reactivemongo4s.dsl.BsonDsl._
+val col: BSONCollection = ???
+col.find($and("b" $exists true, "a" $nin Set(1,2), "c" $gte 20 $lt 100))
 ```
 
 ### Development

@@ -6,9 +6,9 @@ ThisBuild / credentials += Credentials(Path.userHome / ".sbt" / ".credentials")
 
 addCommandAlias("f", ";scalafixAll;scalafmtAll")
 
-val ce3Ver = "0.1.0-SNAPSHOT"
-val ce2Ver = "0.1.0-SNAPSHOT"
-val dslVer = "0.0.1-SNAPSHOT"
+val ce3Ver = "0.1.0"
+val ce2Ver = "0.1.0"
+val dslVer = "0.1.0"
 
 def scalafixRunExplicitly: Def.Initialize[Task[Boolean]] =
   Def.task {
@@ -33,7 +33,11 @@ lazy val root = (project in file("."))
 lazy val core = (project in file("modules/core"))
   .settings(
     commonSettings,
-    noPublishSettings,
+    publishTo := {
+      val base = "https://bluechipfinancial.jfrog.io/artifactory/sbt-release-local"
+      if (isSnapshot.value) Some("Artifactory Realm" at base + ";build.timestamp=" + new Date().getTime)
+      else Some("Artifactory Realm" at base)
+    },
     libraryDependencies ++= coreDependencies,
   )
 
