@@ -6,9 +6,10 @@ ThisBuild / credentials += Credentials(Path.userHome / ".sbt" / ".credentials")
 
 addCommandAlias("f", ";scalafixAll;scalafmtAll")
 
-val ce3Ver = "0.1.0-SNAPSHOT"
-val ce2Ver = "0.1.0-SNAPSHOT"
-val dslVer = "0.1.0-SNAPSHOT"
+val coreVer = "0.1.0-SNAPSHOT"
+val ce3Ver  = "0.1.0-SNAPSHOT"
+val ce2Ver  = "0.1.0-SNAPSHOT"
+val dslVer  = "0.1.0-SNAPSHOT"
 
 def scalafixRunExplicitly: Def.Initialize[Task[Boolean]] =
   Def.task {
@@ -32,7 +33,8 @@ lazy val root = (project in file("."))
 
 lazy val core = (project in file("modules/core"))
   .settings(
-    name := "reactivemongo4s-core",    
+    name := "reactivemongo4s-core",
+    version := coreVer,
     commonSettings,
     publishTo := {
       val base = "https://bluechipfinancial.jfrog.io/artifactory/sbt-release-local"
