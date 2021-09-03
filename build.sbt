@@ -32,6 +32,7 @@ lazy val root = (project in file("."))
 
 lazy val core = (project in file("modules/core"))
   .settings(
+    name := "reactivemongo4s-core",    
     commonSettings,
     publishTo := {
       val base = "https://bluechipfinancial.jfrog.io/artifactory/sbt-release-local"
