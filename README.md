@@ -1,31 +1,54 @@
+### Installation
+##### CE2
+```sbt
+libraryDependencies += "com.bcf" %% "reactivemongo4s-ce2" % "0.1.0"
+```
+##### CE3
+```sbt
+libraryDependencies += "com.bcf" %% "reactivemongo4s-ce3" % "0.1.0"
+```
+
+##### DSL
+```sbt
+libraryDependencies += "com.bcf" %% "reactivemongo4s-dsl" % "0.1.0"
+```
+
 ### Usage
 ##### Examples
+###### Streaming
 ```scala
-import com.bcf.reactivemongo4s.implicits
+import com.bcf.reactivemongo4s.implicits._
+import com.bcf.reactivemongo4s.dsl.BsonDsl._
+
+val col: BSONCollection = ???
 
 override def run(args: List[String]): IO[ExitCode] =
-  MongoClientF[IO](Seq("localhost"), MongoConnectionOptions.default.copy(keepAlive = true, readConcern = ReadConcern.Majority))
-    .use { con =>
-      for {
-        db <- con.getDatabase("test")
-        col <- db.getCollection("test")
-        res <- col.find(BSONDocument("b" -> BSONDocument("$exists" -> true)))
-          .cursor[SomeModel]()
-          .toStream[IO](100)
-        _ <- res.evalMap(model => IO.println(s"Got $model")).compile.drain
+    for {
+        res <- col.find("b" $exists true) 
+                  .cursor[SomeModel]()
+                  .toStream[IO](100)
+        _ <- res.evalMap(model => IO.println(s"Got $model"))
+                .compile
+                .drain
         count <- col.countF[IO]
         _ <- IO.println("Count: " + count)
         countAggregated <- col.aggregateWith[SomeModel]() { framework =>
-          import framework.{Count, Match}
-
-          List(
-            Match(BSONDocument("b" -> BSONDocument("$gte" -> 1000))),
-            Count("total")
-          )
-        }.headF[IO]
+              import framework.{Count, Match}
+            
+              List(
+                Match("b" $gte 1000),
+                Count("total")
+              )
+          }.headF[IO]
         _ <- IO.println("countAggregated: " + countAggregated)
-      } yield ()
-    }.as(ExitCode.Success)
+    } yield ()
+```
+
+###### DSL
+```scala
+import com.bcf.reactivemongo4s.dsl.BsonDsl._
+val col: BSONCollection = ???
+col.find($and("b" $exists true, "a" $nin Set(1,2), "c" $gte 20 $lt 100))
 ```
 
 ### Development
