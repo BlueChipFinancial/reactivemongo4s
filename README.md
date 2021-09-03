@@ -1,16 +1,16 @@
 ### Installation
 ##### CE2
 ```sbt
-libraryDependencies += "com.bcf" %% "reactivemongo4s-ce2" % "0.1.0"
+libraryDependencies += "com.bcf" %% "reactivemongo4s-ce2" % "0.2.0"
 ```
 ##### CE3
 ```sbt
-libraryDependencies += "com.bcf" %% "reactivemongo4s-ce3" % "0.1.0"
+libraryDependencies += "com.bcf" %% "reactivemongo4s-ce3" % "0.2.0"
 ```
 
 ##### DSL
 ```sbt
-libraryDependencies += "com.bcf" %% "reactivemongo4s-dsl" % "0.1.0"
+libraryDependencies += "com.bcf" %% "reactivemongo4s-dsl" % "0.2.0"
 ```
 
 ### Usage
