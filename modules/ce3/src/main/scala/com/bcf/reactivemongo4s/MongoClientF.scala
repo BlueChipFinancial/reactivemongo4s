@@ -2,12 +2,11 @@ package com.bcf.reactivemongo4s
 
 import scala.concurrent.duration._
 
-import cats.effect.Async
-import cats.effect.kernel.Resource
+import cats.effect.{Async, Resource}
 import cats.syntax.all._
 import com.bcf.reactivemongo4s.helpers._
 import reactivemongo.api
-import reactivemongo.api.{AsyncDriver, FailoverStrategy, MongoConnectionOptions}
+import reactivemongo.api.{AsyncDriver, FailoverStrategy, MongoConnection, MongoConnectionOptions}
 
 trait MongoClientF[F[_]] {
   def getDatabase(name: String, failoverStrategy: FailoverStrategy = FailoverStrategy()): F[MongoDatabaseF[F]]
@@ -34,6 +33,19 @@ object MongoClientF {
     val driver = new AsyncDriver
     Resource
       .make(F.fromFutureDelay(_ => driver.connect(nodes, options)))(_ => F.fromFutureDelay(driver.close(closeTimeout)(_)))
+      .map(c => new MongoClientImplF[F](c))
+  }
+
+  def fromConnectionUri[F[_]](
+      uri: String,
+      closeTimeout: FiniteDuration = 10.seconds
+  )(implicit F: Async[F]): Resource[F, MongoClientF[F]] = {
+    val driver = new AsyncDriver
+    Resource
+      .make(for {
+        uri <- F.fromFutureDelay(MongoConnection.fromString(uri)(_))
+        con <- F.fromFutureDelay(_ => driver.connect(uri))
+      } yield con)(_ => F.fromFutureDelay(driver.close(closeTimeout)(_)))
       .map(c => new MongoClientImplF[F](c))
   }
 

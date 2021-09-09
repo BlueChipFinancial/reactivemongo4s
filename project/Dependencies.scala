@@ -3,7 +3,7 @@ import sbt._
 object Dependencies {
 
   object v {
-    val reactiveMongo = "1.0.6"
+    val reactiveMongo = "1.0.7"
     val scala = "2.13.6"
     val scalaTest = "3.2.9"
     val joda = "2.10.10"
