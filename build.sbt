@@ -6,10 +6,10 @@ ThisBuild / credentials += Credentials(Path.userHome / ".sbt" / ".credentials")
 
 addCommandAlias("f", ";scalafixAll;scalafmtAll")
 
-val coreVer = "0.2.0"
-val ce3Ver  = "0.2.1"
-val ce2Ver  = "0.2.1"
-val dslVer  = "0.2.0"
+val coreVer = "0.2.2"
+val ce3Ver  = "0.2.2"
+val ce2Ver  = "0.2.2"
+val dslVer  = "0.2.2"
 
 def scalafixRunExplicitly: Def.Initialize[Task[Boolean]] =
   Def.task {
