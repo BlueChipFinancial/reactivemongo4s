@@ -6,10 +6,10 @@ ThisBuild / credentials += Credentials(Path.userHome / ".sbt" / ".credentials")
 
 addCommandAlias("f", ";scalafixAll;scalafmtAll")
 
-val coreVer = "0.2.2"
-val ce3Ver  = "0.2.2"
-val ce2Ver  = "0.2.2"
-val dslVer  = "0.2.2"
+val coreVer = "0.2.3"
+val ce3Ver = "0.2.3"
+val ce2Ver = "0.2.3"
+val dslVer = "0.2.3"
 
 def scalafixRunExplicitly: Def.Initialize[Task[Boolean]] =
   Def.task {
@@ -78,7 +78,8 @@ lazy val ce2 = (project in file("modules/ce2"))
       if (isSnapshot.value) Some("Artifactory Realm" at base + ";build.timestamp=" + new Date().getTime)
       else Some("Artifactory Realm" at base)
     },
-  ).dependsOn(core % "compile->compile;test->test")
+  )
+  .dependsOn(core % "compile->compile;test->test")
 
 lazy val ce3 = (project in file("modules/ce3"))
   .settings(
@@ -92,7 +93,8 @@ lazy val ce3 = (project in file("modules/ce3"))
       if (isSnapshot.value) Some("Artifactory Realm" at base + ";build.timestamp=" + new Date().getTime)
       else Some("Artifactory Realm" at base)
     },
-  ).dependsOn(core % "compile->compile;test->test")
+  )
+  .dependsOn(core % "compile->compile;test->test")
 
 lazy val dsl = (project in file("modules/dsl"))
   .settings(
